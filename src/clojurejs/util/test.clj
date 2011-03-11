@@ -9,7 +9,7 @@
 
 (declare wrap-value unwrap-value)
 
-(defn call-in-new-js-context [body-fn]
+(defn- call-in-new-js-context [body-fn]
   "Calls body-fn function in Rhino context prepared to execute tests."
   (try
     (let [ctx (Context/enter)
@@ -40,11 +40,10 @@
   return from this function."
   (if (nil? *context*)
     (call-in-new-js-context #(call-in-new-js-scope body-fn))
-    (let [clean-scope (.newObject *context* *scope*)]
-      (.setPrototype clean-scope *scope*)
-      (.setParentScope clean-scope nil)
-      (binding [*scope* clean-scope]
-        (body-fn)))))
+    (binding [*scope* (doto (.newObject *context* *scope*)
+                        (.setPrototype *scope*)
+                        (.setParentScope nil))]
+      (body-fn))))
 
 (defn- js-object-to-clj-map [obj seen]
   (into {} (for [id (.getIds obj)]
@@ -108,7 +107,7 @@
     (throw (RuntimeException. "Can't import macros.")))
   (call-js-fn "_clj_importfn" name fn-var))
 
-(defn simplify-import-decl [ns decl]
+(defn- simplify-import-decl [ns decl]
   (let [reslv (fn [s]
                 (let [s (cond (string? s) (symbol s)
                               (symbol? s) s)]
